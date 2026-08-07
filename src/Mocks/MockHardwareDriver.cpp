@@ -78,7 +78,7 @@ void MockHardwareDriver::shutdown() {
 
 void MockHardwareDriver::triggerSyntheticEstop(std::string reason) {
     core::g_estop_flag.store(true, std::memory_order_release);
-    queue_.push(events::EvEmergencyStop{std::move(reason)});
+    queue_.push(events::EvEmergencyStop{{}, std::move(reason)});
 }
 
 void MockHardwareDriver::WorkerLoop() {
@@ -105,7 +105,7 @@ void MockHardwareDriver::WorkerLoop() {
                 std::this_thread::sleep_for(kSelfTestLatency);
                 if (!running_.load()) return;
                 if (config_.hardwareFaultInjection) {
-                    queue_.push(events::EvBootHardwareFailed{"simulated hardware fault (config injected)"});
+                    queue_.push(events::EvBootHardwareFailed{{}, "simulated hardware fault (config injected)"});
                 } else {
                     queue_.push(events::EvBootHardwareReady{});
                 }
@@ -115,7 +115,7 @@ void MockHardwareDriver::WorkerLoop() {
             case PendingAction::WetClean: {
                 std::this_thread::sleep_for(std::chrono::milliseconds(config_.cleaningDurationMs));
                 if (!running_.load()) return;
-                queue_.push(events::EvCleanComplete{sectorId});
+                queue_.push(events::EvCleanComplete{{}, sectorId});
                 break;
             }
             case PendingAction::None:

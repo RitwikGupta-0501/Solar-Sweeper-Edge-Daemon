@@ -102,6 +102,17 @@ class Hardware_Fault;
 // both idle-family states start a cleaning pass and fault out identically.
 class IdleStateBase : public EdgeStateMachine {
 public:
+    // Brings the rest of EdgeStateMachine's react() overload set into
+    // scope: this class (and its subclasses below) only override a couple
+    // of event types, and without this a derived override would otherwise
+    // hide the base class's other overloads for the same function name.
+    // Harmless in practice here -- every dispatch call goes through an
+    // EdgeStateMachine* (see StateMachine.cpp's DispatchToFsm), so overload
+    // resolution always sees the full base set regardless -- but this
+    // keeps the code correct-by-construction rather than correct-by-luck,
+    // and silences the compiler's -Woverloaded-virtual warning.
+    using EdgeStateMachine::react;
+
     void react(events::EvStart const&) override {
         if (IsEstopActive()) {
             util::Logger::Warn("FSM", "discarded EvStart -- estop active");
@@ -122,6 +133,19 @@ protected:
             ctx.hardware->stopActuators();
         }
     }
+
+    // Network becoming available means the same thing whether it arrives
+    // as "boot finally connected" or "reconnected after a drop" -- both
+    // land here. This matters because Boot_Init can (nondeterministically,
+    // depending on which subsystem finishes self-test last) move on to
+    // Offline_Idle *before* a late EvBootNetworkReady arrives; without
+    // this override that event would silently fall through to the empty
+    // base-class default and the daemon would be stuck thinking it's
+    // offline even though the network mock is already connected.
+    void ReconnectToIdle() {
+        ctx.networkAvailable = true;
+        transit<Idle>();
+    }
 };
 
 // Shared behavior for DryClean/WetClean: a network drop never aborts an
@@ -131,6 +155,9 @@ protected:
 // raced a just-latched E-Stop safe to discard.
 class CleaningStateBase : public EdgeStateMachine {
 public:
+    // See IdleStateBase's identical using-declaration above for why.
+    using EdgeStateMachine::react;
+
     void exit() override {
         if (ctx.hardware) {
             ctx.hardware->stopActuators();
@@ -160,6 +187,9 @@ public:
 
 class Boot_Init : public EdgeStateMachine {
 public:
+    // See IdleStateBase's identical using-declaration above for why.
+    using EdgeStateMachine::react;
+
     void entry() override {
         util::Logger::Info("FSM", "Boot_Init: running self-test");
         ctx.hardwareReady = false;
@@ -238,6 +268,9 @@ private:
 
 class Idle : public IdleStateBase {
 public:
+    // See IdleStateBase's identical using-declaration above for why.
+    using IdleStateBase::react;
+
     void entry() override {
         util::Logger::Info("FSM", "Idle: awaiting start");
         SafePark();
@@ -251,19 +284,26 @@ public:
 
 class Offline_Idle : public IdleStateBase {
 public:
+    // See IdleStateBase's identical using-declaration above for why.
+    using IdleStateBase::react;
+
     void entry() override {
         util::Logger::Warn("FSM", "Offline_Idle: degraded mode, telemetry caching only");
         SafePark();
     }
 
-    void react(events::EvNetworkRestored const&) override {
-        ctx.networkAvailable = true;
-        transit<Idle>();
-    }
+    void react(events::EvNetworkRestored const&) override { ReconnectToIdle(); }
+
+    // See ReconnectToIdle()'s comment: a late-arriving boot-ready event is
+    // functionally identical to a reconnect once we're already past boot.
+    void react(events::EvBootNetworkReady const&) override { ReconnectToIdle(); }
 };
 
 class Inspection : public EdgeStateMachine {
 public:
+    // See IdleStateBase's identical using-declaration above for why.
+    using EdgeStateMachine::react;
+
     void entry() override {
         util::Logger::Info("FSM", "Inspection: sector " + std::to_string(ctx.currentSectorIndex));
         if (ctx.vision) {
@@ -330,6 +370,9 @@ public:
 // resuming service.
 class Error : public EdgeStateMachine {
 public:
+    // See IdleStateBase's identical using-declaration above for why.
+    using EdgeStateMachine::react;
+
     void entry() override {
         util::Logger::Error("FSM", "Error: emergency stop latched (" + ctx.lastFaultReason + ")");
         if (ctx.hardware) {

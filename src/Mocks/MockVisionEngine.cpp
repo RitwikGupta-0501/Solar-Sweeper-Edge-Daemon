@@ -96,9 +96,9 @@ void MockVisionEngine::WorkerLoop() {
                 nextResultIndex_++;
 
                 if (result.sectorClear) {
-                    queue_.push(events::EvSectorClear{sectorId});
+                    queue_.push(events::EvSectorClear{{}, sectorId});
                 } else {
-                    queue_.push(events::EvDebrisDetected{sectorId, result.debrisType, result.confidence});
+                    queue_.push(events::EvDebrisDetected{{}, sectorId, result.debrisType, result.confidence});
                 }
                 break;
             }
