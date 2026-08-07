@@ -12,7 +12,7 @@ It acts as the deterministic bridge between the Cloud (FastAPI), the AI (ONNX), 
 
 ## 🚀 Key Architectural Features
 - **Lock-Free Concurrency:** Eliminates mutex bottlenecks.
-- **TinyFSM State Machine:** Guarantees safe transitions between `Idle`, `Inspection`, `Dry_Clean`, `Wet_Clean`, and `Error` states without spaghetti code.
+- **TinyFSM State Machine:** Guarantees safe transitions between `Boot_Init`, `Idle`, `Offline_Idle`, `Inspection`, `DryClean`, `WetClean`, `Error`, and `Hardware_Fault` states without spaghetti code.
 - **Atomic Hardware Safety:** Mechanical emergency stops bypass the software queue using an `std::atomic<bool>` flag to halt actuators in sub-milliseconds.
 - **Offline Resilience:** Persists MQTT telemetry to a local disk cache if Wi-Fi drops.
 - **True Zero-Copy Vision:** Uses DMA-BUFs to pass hardware memory directly to the inference engine, saving critical CPU cycles.
@@ -20,8 +20,8 @@ It acts as the deterministic bridge between the Cloud (FastAPI), the AI (ONNX), 
 ## 🏗️ Phased Execution Plan
 To ensure a stable build, the daemon is being constructed in four progressive phases. Each phase produces a standalone, testable binary.
 
-* **Phase 1: The Skeleton (FSM & Event Loop)**
-  * Building the core C++17 application, implementing the lock-free event queue, and wiring the TinyFSM state transitions using mocked events.
+* **Phase 1: The Skeleton (FSM & Event Loop)** -- done
+  * Core C++17 application, lock-free event queue, and the full TinyFSM state machine, all driven by mock hardware/network/vision implementations. Boots, self-tests, runs a complete cleaning cycle, and reacts to E-Stops and network drops -- all without any real hardware, broker, or camera attached.
 * **Phase 2: Hardware Abstraction Layer**
   * Establishing UART serial communication with the Arduino to dispatch physical commands and listen for hardware interrupts (E-Stops).
 * **Phase 3: Network & Telemetry Layer**
@@ -30,10 +30,21 @@ To ensure a stable build, the daemon is being constructed in four progressive ph
   * Hooking up the camera pipeline and ONNX Runtime to parse bounding boxes and feed physical cleaning decisions back into the state machine.
 
 ## 🛠️ Build Instructions
-*(Detailed CMake build instructions will be populated here as Phase 1 commences.)*
 
-**Prerequisites:**
-* Modern C++ Compiler (C++17 or C++20)
-* CMake >= 3.15
-* Eclipse Paho MQTT C++
-* OpenCV 4.x / ONNX Runtime
+**Prerequisites (Phase 1):**
+* Modern C++ compiler (C++17), CMake >= 3.16, and network access on first configure (dependencies are fetched via CMake `FetchContent`: nlohmann/json, moodycamel::ConcurrentQueue, tinyfsm, Catch2 -- no manual submodule setup needed)
+
+Phase 2-4 add real hardware/network/vision dependencies (a serial port, Eclipse Paho MQTT C++, OpenCV/ONNX Runtime) as each phase's mock is swapped for a real implementation.
+
+**Build and test:**
+```sh
+cmake -S . -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+**Run the daemon (mocks only, Phase 1):**
+```sh
+./build/solar_edge_daemon config/daemon.config.json
+```
+This boots through self-test into `Idle`/`Offline_Idle` and drops into an interactive console -- type `help` for the list of commands (`start`, `debris <type>`, `estop`, `network-lost`, etc.) to drive the FSM through a full cleaning cycle without any physical hardware attached.
