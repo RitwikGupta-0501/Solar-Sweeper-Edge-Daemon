@@ -1,0 +1,31 @@
+{
+  // comments must survive nlohmann::json's ignore_comments parse flag
+  "system": {
+    "log_level": "debug",
+    "total_sectors": 3,
+    "queue_capacity_hint": 64,
+    "boot_timeout_ms": 1000,
+    "boot_max_retries": 2
+  },
+  "mock": {
+    "enabled": true,
+    "hardware_fault_injection": false,
+    "network_start_offline": false,
+    "vision_cycle_ms": 10,
+    "cleaning_duration_ms": 10
+  },
+  "mqtt": {
+    "broker_host": "test-broker",
+    "broker_port": 1884,
+    "client_id": "test-daemon",
+    "topic_prefix": "test/robot"
+  },
+  "serial": {
+    "device_path": "/dev/ttyTEST",
+    "baud_rate": 9600
+  },
+  "vision": {
+    "model_path": "test-model.onnx",
+    "camera_index": 1
+  }
+}

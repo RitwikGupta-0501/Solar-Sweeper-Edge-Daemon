@@ -168,6 +168,16 @@ public:
         ctx.networkAvailable = false;
     }
 
+    // A restore mid-cycle only needs to update the flag, not transition --
+    // AdvanceSectorOrFinish() re-checks it when the cycle actually
+    // completes. Without this override, a loss-then-restore that both
+    // happen before completion would incorrectly still land in
+    // Offline_Idle, since the flag flipped false by EvNetworkLost would
+    // never be flipped back.
+    void react(events::EvNetworkRestored const&) override {
+        ctx.networkAvailable = true;
+    }
+
     void react(events::EvEmergencyStop const& event) override {
         ctx.lastFaultReason = event.reason;
         if (ctx.hardware) {
@@ -335,6 +345,12 @@ public:
         // An in-flight inspection decision counts as an active operation --
         // don't abort it, just note the network is down.
         ctx.networkAvailable = false;
+    }
+
+    // See CleaningStateBase's identical override for why this only updates
+    // the flag rather than transitioning.
+    void react(events::EvNetworkRestored const&) override {
+        ctx.networkAvailable = true;
     }
 
     void react(events::EvEmergencyStop const& event) override {

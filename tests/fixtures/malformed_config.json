@@ -1,0 +1,5 @@
+{
+  "system": {
+    "log_level": "info",
+    "total_sectors": 3,
+  }  // trailing comma makes this invalid JSON even with comments allowed

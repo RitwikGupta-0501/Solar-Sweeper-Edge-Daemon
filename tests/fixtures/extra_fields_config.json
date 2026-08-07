@@ -1,0 +1,26 @@
+{
+  "system": {
+    "log_level": "info",
+    "total_sectors": 3,
+    "queue_capacity_hint": 64,
+    "boot_timeout_ms": 1000,
+    "boot_max_retries": 2
+  },
+  "mock": {
+    "enabled": true,
+    "hardware_fault_injection": false,
+    "network_start_offline": false,
+    "vision_cycle_ms": 10,
+    "cleaning_duration_ms": 10
+  },
+  "mqtt": {
+    "broker_host": "localhost",
+    "future_field_the_backend_team_added": "should be tolerated, not rejected"
+  },
+  "serial": {
+    "unexpected_field": 123
+  },
+  "vision": {
+    "another_unknown_field": true
+  }
+}
