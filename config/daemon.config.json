@@ -1,0 +1,34 @@
+{
+  // All external parameters live here — nothing is hardcoded in the daemon.
+  // Phase 1 only truly reads system.* and mock.*; the mqtt/serial/vision
+  // sections are parsed and stored now so Phase 2-4 don't need a config
+  // schema migration, but their values are not validated or used yet.
+  "system": {
+    "log_level": "info",
+    "total_sectors": 6,
+    "queue_capacity_hint": 1024,
+    "boot_timeout_ms": 5000,
+    "boot_max_retries": 3
+  },
+  "mock": {
+    "enabled": true,
+    "hardware_fault_injection": false,
+    "network_start_offline": false,
+    "vision_cycle_ms": 800,
+    "cleaning_duration_ms": 500
+  },
+  "mqtt": {
+    "broker_host": "localhost",
+    "broker_port": 1883,
+    "client_id": "edge-daemon-01",
+    "topic_prefix": "solarsweeper/robot01"
+  },
+  "serial": {
+    "device_path": "/dev/ttyACM0",
+    "baud_rate": 115200
+  },
+  "vision": {
+    "model_path": "models/debris_detector.onnx",
+    "camera_index": 0
+  }
+}
