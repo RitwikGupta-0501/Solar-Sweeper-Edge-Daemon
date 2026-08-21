@@ -22,10 +22,11 @@ To ensure a stable build, the daemon is being constructed in four progressive ph
 
 * **Phase 1: The Skeleton (FSM & Event Loop)** -- done
   * Core C++17 application, lock-free event queue, and the full TinyFSM state machine, all driven by mock hardware/network/vision implementations. Boots, self-tests, runs a complete cleaning cycle, and reacts to E-Stops and network drops -- all without any real hardware, broker, or camera attached.
-* **Phase 2: Hardware Abstraction Layer**
-  * Establishing UART serial communication with the Arduino to dispatch physical commands and listen for hardware interrupts (E-Stops).
-* **Phase 3: Network & Telemetry Layer**
-  * Integrating Eclipse Paho MQTT for asynchronous cloud communication, including offline disk-caching to survive network drops.
+* **Phase 2: Hardware Abstraction Layer (Serial/UART) & Malleable Contracts** -- done
+  * Config-driven opcode mapping and RFC 6901 tolerant JSON decoders.
+  * Real POSIX serial driver (`SerialHardwareDriver`) for UART/USB Arduino communication, background reader thread, sub-millisecond atomic E-Stop latching, systemd unit, and offline disk telemetry cache.
+* **Phase 3: Network & Telemetry Layer (MQTT Integration)**
+  * Integrating Eclipse Paho MQTT client for live cloud communication and cache synchronization.
 * **Phase 4: AI Vision Integration**
   * Hooking up the camera pipeline and ONNX Runtime to parse bounding boxes and feed physical cleaning decisions back into the state machine.
 

@@ -28,13 +28,7 @@ FetchContent_MakeAvailable(concurrentqueue)
 add_library(concurrentqueue_headers INTERFACE)
 target_include_directories(concurrentqueue_headers INTERFACE ${concurrentqueue_SOURCE_DIR})
 
-# --- tinyfsm: header-only, and unlike the others ships no CMakeLists.txt
-# at all (just a bare include/ tree), so there's no target to make
-# available -- fetch the source only and wrap it in our own INTERFACE
-# target. FetchContent_Populate is deprecated in favor of
-# FetchContent_MakeAvailable, but that requires add_subdirectory()-able
-# project files, which tinyfsm doesn't provide; the policy scoping below
-# uses the old (still-supported) behavior deliberately, not by oversight.
+# --- tinyfsm: header-only, wrap in INTERFACE target ---
 if(POLICY CMP0169)
   cmake_policy(PUSH)
   cmake_policy(SET CMP0169 OLD)
@@ -61,6 +55,8 @@ add_library(daemon_core STATIC
   src/Core/Flags.cpp
   src/Core/StateMachine.cpp
   src/Config/Config.cpp
+  src/Hardware/SerialHardwareDriver.cpp
+  src/Network/TelemetryCache.cpp
   src/Mocks/MockNetworkClient.cpp
   src/Mocks/MockHardwareDriver.cpp
   src/Mocks/MockVisionEngine.cpp

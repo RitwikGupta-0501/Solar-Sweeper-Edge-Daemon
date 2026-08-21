@@ -45,10 +45,10 @@ TEST_CASE("Config rejects a missing required field with the field path named", "
     }
 }
 
-TEST_CASE("Config rejects mock.enabled = false", "[config]") {
-    // Phase 1 has no real drivers; flipping mock off must fail fast rather
-    // than silently produce a daemon that can never boot.
-    REQUIRE_THROWS_AS(Config::LoadFromFile(FixturePath("mock_disabled_config.json")), ConfigError);
+TEST_CASE("Config parses mock.enabled = false for real driver operation", "[config]") {
+    const Config cfg = Config::LoadFromFile(FixturePath("mock_disabled_config.json"));
+    CHECK_FALSE(cfg.mock().enabled);
+    CHECK_FALSE(cfg.mock().hardwareDriver);
 }
 
 TEST_CASE("Config tolerates unknown fields in mqtt/serial/vision sections", "[config]") {

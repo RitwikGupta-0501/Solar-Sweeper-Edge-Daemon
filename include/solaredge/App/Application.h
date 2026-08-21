@@ -5,21 +5,15 @@
 
 #include "solaredge/Config/Config.h"
 #include "solaredge/Core/EventQueue.h"
-#include "solaredge/Mocks/MockHardwareDriver.h"
-#include "solaredge/Mocks/MockNetworkClient.h"
-#include "solaredge/Mocks/MockVisionEngine.h"
+#include "solaredge/Interfaces/IHardwareDriver.h"
+#include "solaredge/Interfaces/INetworkClient.h"
+#include "solaredge/Interfaces/IVisionEngine.h"
 
 namespace sse::app {
 
-// Composition root: owns the event queue, the three driver instances, and
-// drives the FSM's lifecycle. main.cpp stays a thin entry point that just
-// constructs this and calls run().
-//
-// Phase 1 always wires the Mock* implementations directly, since that is
-// the entire point of this phase. Phase 2-4 introduce a config-driven or
-// factory-based seam here to select real vs. mock per interface -- the FSM
-// and event loop below don't change either way, since they only ever see
-// the abstract interfaces.
+// Composition root: owns the event queue, the three driver instances (polymorphic),
+// and drives the FSM's lifecycle. Dynamic factory selects between mock and real
+// implementations based on configuration flags.
 class Application {
 public:
     explicit Application(config::Config config, bool enableConsole = true);
@@ -45,9 +39,9 @@ private:
     bool enableConsole_;
 
     core::EventQueue queue_;
-    std::unique_ptr<mocks::MockHardwareDriver> hardware_;
-    std::unique_ptr<mocks::MockNetworkClient> network_;
-    std::unique_ptr<mocks::MockVisionEngine> vision_;
+    std::unique_ptr<iface::IHardwareDriver> hardware_;
+    std::unique_ptr<iface::INetworkClient> network_;
+    std::unique_ptr<iface::IVisionEngine> vision_;
 
     std::thread consoleThread_;
 };
