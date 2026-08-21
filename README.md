@@ -18,6 +18,7 @@ For in-depth explanations, architecture diagrams, decision records, and integrat
 | 🔌 **[Hardware HAL & Safety Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/HARDWARE_AND_SAFETY_GUIDE.md)** | POSIX UART/Serial driver, opcode lookup tables, limit switch interrupts, and systemd service. |
 | 📡 **[Offline Resilience & Telemetry Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/OFFLINE_AND_TELEMETRY_GUIDE.md)** | MQTT schemas, RFC 6901 tolerant JSON fallbacks, `fdatasync` power-cut durability, and cloud deduplication. |
 | 🛠️ **[Developer, Testing & Config Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/DEVELOPER_AND_TESTING_GUIDE.md)** | Quickstart, full `daemon.config.json` reference, interactive CLI console, and test suite breakdown. |
+| 🚜 **[Physical, Optical & Operational Model](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/PHYSICAL_AND_OPERATIONAL_MODEL.md)** | Continuous travel kinematics, gantry tool layout, sector vs bounding box hierarchy, and optical FOV math. |
 | 📄 **[Serial Interface Contract](file:///mnt/data/Backups/Documents/Capstone/codebase/contracts/serial_protocol.md)** | Byte-level hardware protocol contract for Arduino microcontroller firmware. |
 | 📄 **[MQTT Interface Contract](file:///mnt/data/Backups/Documents/Capstone/codebase/contracts/mqtt_schema.md)** | JSON schemas and topic routes contract for FastAPI cloud engineers. |
 
