@@ -102,8 +102,19 @@ The Edge Daemon uses **RFC 6901 JSON pointer fallback resolution**. If field nam
 
 ---
 
-## 4. Offline Telemetry Persistence & Resync
-If the network connection drops during operation:
+## 4. Offline Telemetry Persistence, Power-Cut Durability & Cloud Deduplication
+
+### 4.1 Persistence & Power-Cut Durability
+If the network connection drops or the broker becomes unreachable:
 1. The daemon continues active sector operations safely and enters `Offline_Idle`.
-2. All telemetry payloads are written to a persistent local cache on disk (`/var/lib/edge-daemon/cache.json`).
-3. Upon reconnection to the MQTT broker, the cache is drained and republished in chronological order.
+2. All telemetry payloads are appended to a persistent local cache on disk (`/var/lib/edge-daemon/cache.json`).
+3. **Physical Sync Guarantee:** Every write executes a POSIX `fdatasync()` to force the storage controller to commit bytes to non-volatile flash immediately, guaranteeing zero data loss even if the Raspberry Pi loses power abruptly.
+4. Upon reconnection to the MQTT broker, the cache is drained and republished in chronological order.
+
+### 4.2 Cloud-Side Idempotency & Deduplication
+To protect against network replays or reboots during MQTT ACK exchanges, every telemetry record carries unique idempotency keys:
+- `message_id`: Globally unique identifier formatted as `{device_id}-{timestamp_ms}-{seq_id}` (e.g., `edge-daemon-01-1771681205000-42`).
+- `seq_id`: Monotonically increasing 64-bit integer counter.
+- `timestamp_ms`: Epoch millisecond timestamp of original event occurrence.
+
+The FastAPI cloud backend can safely deduplicate incoming messages by indexing on `message_id` or `(device_id, seq_id)`.
