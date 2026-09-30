@@ -96,11 +96,7 @@ MockConfig ParseMockConfig(const json& root) {
     MockConfig cfg;
 
     cfg.enabled = RequireBool(section, "mock", "enabled");
-    if (!cfg.enabled) {
-        // Phase 1 has no real drivers to fall back on — flipping this off
-        // would silently produce a daemon that can never boot.
-        throw ConfigError("mock.enabled: must be true; real drivers are not implemented yet (Phase 1)");
-    }
+
 
     cfg.hardwareFaultInjection = RequireBool(section, "mock", "hardware_fault_injection");
     cfg.networkStartOffline = RequireBool(section, "mock", "network_start_offline");

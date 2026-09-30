@@ -55,6 +55,15 @@ FetchContent_Declare(Catch2
   GIT_TAG v3.5.4)
 FetchContent_MakeAvailable(Catch2)
 
+# --- asio: standalone async I/O (header-only) ---
+FetchContent_Declare(asio
+  GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+  GIT_TAG asio-1-30-2)
+FetchContent_MakeAvailable(asio)
+add_library(asio_headers INTERFACE)
+target_include_directories(asio_headers INTERFACE ${asio_SOURCE_DIR}/asio/include)
+target_compile_definitions(asio_headers INTERFACE ASIO_STANDALONE)
+
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_library(daemon_core STATIC
@@ -64,6 +73,7 @@ add_library(daemon_core STATIC
   src/Mocks/MockNetworkClient.cpp
   src/Mocks/MockHardwareDriver.cpp
   src/Mocks/MockVisionEngine.cpp
+  src/Hardware/SerialHardwareDriver.cpp
   src/App/Application.cpp
   src/Util/Logger.cpp
 )
@@ -72,6 +82,7 @@ target_link_libraries(daemon_core PUBLIC
   tinyfsm
   concurrentqueue_headers
   nlohmann_json::nlohmann_json
+  asio_headers
   Threads::Threads
 )
 

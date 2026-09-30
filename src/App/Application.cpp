@@ -11,6 +11,10 @@
 #include "solaredge/Core/ShutdownFlag.h"
 #include "solaredge/Core/States.h"
 #include "solaredge/Util/Logger.h"
+#include "solaredge/Hardware/SerialHardwareDriver.h"
+#include "solaredge/Mocks/MockHardwareDriver.h"
+#include "solaredge/Mocks/MockNetworkClient.h"
+#include "solaredge/Mocks/MockVisionEngine.h"
 
 namespace sse::app {
 
@@ -29,7 +33,9 @@ Application::Application(config::Config config, bool enableConsole)
     : config_(std::move(config)),
       enableConsole_(enableConsole),
       queue_(config_.system().queueCapacityHint),
-      hardware_(std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock())),
+      hardware_(config_.mock().enabled 
+          ? static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock()))
+          : static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<hw::SerialHardwareDriver>(queue_, config_.serial()))),
       network_(std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock())),
       vision_(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock())) {}
 
@@ -103,13 +109,17 @@ void Application::ConsoleLoop() {
         } else if (command == "clear") {
             queue_.push(events::EvSectorClear{{}, 0});
         } else if (command == "network-lost") {
-            network_->simulateNetworkLoss();
+            if (auto m = dynamic_cast<mocks::MockNetworkClient*>(network_.get())) m->simulateNetworkLoss();
         } else if (command == "network-restored") {
-            network_->simulateNetworkRestore();
+            if (auto m = dynamic_cast<mocks::MockNetworkClient*>(network_.get())) m->simulateNetworkRestore();
         } else if (command == "estop") {
             std::string reason;
             std::getline(iss, reason);
-            hardware_->triggerSyntheticEstop(reason.empty() ? "console" : reason);
+            if (auto m = dynamic_cast<mocks::MockHardwareDriver*>(hardware_.get())) {
+                m->triggerSyntheticEstop(reason.empty() ? "console" : reason);
+            } else {
+                hardware_->emergencyHalt();
+            }
         } else if (command == "estop-clear") {
             queue_.push(events::EvEmergencyCleared{});
         } else if (command == "quit" || command == "exit") {

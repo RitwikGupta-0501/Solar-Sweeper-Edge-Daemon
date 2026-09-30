@@ -5,9 +5,9 @@
 
 #include "solaredge/Config/Config.h"
 #include "solaredge/Core/EventQueue.h"
-#include "solaredge/Mocks/MockHardwareDriver.h"
-#include "solaredge/Mocks/MockNetworkClient.h"
-#include "solaredge/Mocks/MockVisionEngine.h"
+#include "solaredge/Interfaces/IHardwareDriver.h"
+#include "solaredge/Interfaces/INetworkClient.h"
+#include "solaredge/Interfaces/IVisionEngine.h"
 
 namespace sse::app {
 
@@ -45,9 +45,9 @@ private:
     bool enableConsole_;
 
     core::EventQueue queue_;
-    std::unique_ptr<mocks::MockHardwareDriver> hardware_;
-    std::unique_ptr<mocks::MockNetworkClient> network_;
-    std::unique_ptr<mocks::MockVisionEngine> vision_;
+    std::unique_ptr<iface::IHardwareDriver> hardware_;
+    std::unique_ptr<iface::INetworkClient> network_;
+    std::unique_ptr<iface::IVisionEngine> vision_;
 
     std::thread consoleThread_;
 };
