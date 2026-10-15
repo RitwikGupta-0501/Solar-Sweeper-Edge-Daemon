@@ -1,4 +1,8 @@
 build/
+build_docker/
 *.o
 *.obj
 compile_commands.json
+.cache/
+cache/
+*.spool
