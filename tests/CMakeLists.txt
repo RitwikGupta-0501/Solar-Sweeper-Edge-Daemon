@@ -1,5 +1,6 @@
 add_executable(solar_edge_tests
   test_config_loader.cpp
+  test_config_malleability.cpp
   test_event_queue.cpp
   test_fsm_boot.cpp
   test_fsm_cleaning_cycle.cpp
@@ -7,6 +8,8 @@ add_executable(solar_edge_tests
   test_fsm_network_resilience.cpp
   test_mock_hardware_driver.cpp
   test_mock_vision_engine.cpp
+  test_serial_driver.cpp
+  test_telemetry_cache.cpp
   test_application_boot.cpp
   test_telemetry_spooler.cpp
   test_mqtt_network_client.cpp

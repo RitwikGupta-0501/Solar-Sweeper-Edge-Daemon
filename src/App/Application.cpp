@@ -7,9 +7,14 @@
 #include <sstream>
 #include <utility>
 
+#include "solaredge/Core/EstopFlag.h"
 #include "solaredge/Core/Events.h"
 #include "solaredge/Core/ShutdownFlag.h"
 #include "solaredge/Core/States.h"
+#include "solaredge/Hardware/SerialHardwareDriver.h"
+#include "solaredge/Mocks/MockHardwareDriver.h"
+#include "solaredge/Mocks/MockNetworkClient.h"
+#include "solaredge/Mocks/MockVisionEngine.h"
 #include "solaredge/Util/Logger.h"
 #include "solaredge/Hardware/SerialHardwareDriver.h"
 #include "solaredge/Mocks/MockHardwareDriver.h"
@@ -43,9 +48,9 @@ Application::Application(config::Config config, bool enableConsole)
       vision_(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock())) {}
 
 Application::~Application() {
-    hardware_->shutdown();
-    network_->shutdown();
-    vision_->shutdown();
+    if (hardware_) hardware_->shutdown();
+    if (network_) network_->shutdown();
+    if (vision_) vision_->shutdown();
     if (consoleThread_.joinable()) {
         ::close(STDIN_FILENO);
         consoleThread_.join();
@@ -77,14 +82,12 @@ int Application::run() {
     }
 
     util::Logger::Info("Application", "Shutdown requested -- stopping");
-    hardware_->stopActuators();
-    hardware_->shutdown();
-    network_->shutdown();
-    vision_->shutdown();
+    if (hardware_) hardware_->stopActuators();
+    if (hardware_) hardware_->shutdown();
+    if (network_) network_->shutdown();
+    if (vision_) vision_->shutdown();
 
     if (consoleThread_.joinable()) {
-        // Unblock the console thread's blocking stdin read so it exits on
-        // its own and can be joined, instead of leaking a detached thread.
         ::close(STDIN_FILENO);
         consoleThread_.join();
     }

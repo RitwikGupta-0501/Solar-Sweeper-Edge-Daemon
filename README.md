@@ -1,50 +1,66 @@
 # Solar Sweeper: Edge Daemon 🤖⚡
 
-## 🧠 What is the Edge Daemon?
+The **C++ Edge Daemon** is the high-performance, real-time "Central Brain" of the Automatic Solar Panel Cleaning Gantry, engineered to run on a Raspberry Pi / embedded Linux SBC.
 
-The C++ Edge Daemon is the "Central Brain" of the Automatic Solar Panel Cleaning Machine. It is a highly optimized, multithreaded application designed to run on a Raspberry Pi. 
+It acts as the deterministic bridge between the **Cloud Backend (FastAPI)**, the **Vision AI Pipeline (ONNX/OpenCV)**, and the **Physical Actuators (Arduino Microcontroller)**.
 
-**Why does it exist?**
-Current automated cleaning robots often rely on monolithic, blocking hardware loops (like a simple Arduino `loop()`). When trying to introduce heavy AI vision models and high-frequency cloud telemetry into those systems, the hardware suffers from race conditions, massive latency, and safety failures (like missing a limit switch hit because the CPU was busy processing an image). The Edge Daemon exists to decouple these systems—ensuring the robot is both "smart" (AI-driven) and "safe" (real-time hardware responsiveness).
+---
 
-**How does it work?**
-It acts as the deterministic bridge between the Cloud (FastAPI), the AI (ONNX), and the physical Actuators (Arduino). It runs a blazingly fast Finite State Machine (`TinyFSM`) fed by a **Lock-Free Event Queue**. This means the network, vision, and hardware threads can operate entirely asynchronously without ever blocking one another.
+## 📚 Comprehensive Documentation Suite
 
-## 🚀 Key Architectural Features
-- **Lock-Free Concurrency:** Eliminates mutex bottlenecks.
-- **TinyFSM State Machine:** Guarantees safe transitions between `Boot_Init`, `Idle`, `Offline_Idle`, `Inspection`, `DryClean`, `WetClean`, `Error`, and `Hardware_Fault` states without spaghetti code.
-- **Atomic Hardware Safety:** Mechanical emergency stops bypass the software queue using an `std::atomic<bool>` flag to halt actuators in sub-milliseconds.
-- **Offline Resilience:** Persists MQTT telemetry to a local disk cache if Wi-Fi drops.
-- **True Zero-Copy Vision:** Uses DMA-BUFs to pass hardware memory directly to the inference engine, saving critical CPU cycles.
+For in-depth explanations, architecture diagrams, decision records, and integration protocols, explore our documentation guides:
+
+| Document | Description |
+|---|---|
+| 🏛️ **[System Architecture & Concurrency Model](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/ARCHITECTURE.md)** | Multi-threaded swimlanes, lock-free queue architecture, and sub-millisecond safety model. |
+| ⚖️ **[Architectural Decisions & Rationale (ADRs)](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/DECISIONS_AND_RATIONALE.md)** | Why C++17, why TinyFSM, why lock-free MPSC queues, why malleable contracts, and rejected alternatives. |
+| 🔄 **[State Machine & Lifecycle Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/STATE_MACHINE_GUIDE.md)** | Detailed breakdown of all 8 TinyFSM states, event catalogs, edge cases, and fail-safes. |
+| 🔌 **[Hardware HAL & Safety Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/HARDWARE_AND_SAFETY_GUIDE.md)** | POSIX UART/Serial driver, opcode lookup tables, limit switch interrupts, and systemd service. |
+| 📡 **[Offline Resilience & Telemetry Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/OFFLINE_AND_TELEMETRY_GUIDE.md)** | MQTT schemas, RFC 6901 tolerant JSON fallbacks, `fdatasync` power-cut durability, and cloud deduplication. |
+| 🛠️ **[Developer, Testing & Config Guide](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/DEVELOPER_AND_TESTING_GUIDE.md)** | Quickstart, full `daemon.config.json` reference, interactive CLI console, and test suite breakdown. |
+| 🚜 **[Physical, Optical & Operational Model](file:///mnt/data/Backups/Documents/Capstone/codebase/docs/PHYSICAL_AND_OPERATIONAL_MODEL.md)** | Continuous travel kinematics, gantry tool layout, sector vs bounding box hierarchy, and optical FOV math. |
+| 📄 **[Serial Interface Contract](file:///mnt/data/Backups/Documents/Capstone/codebase/contracts/serial_protocol.md)** | Byte-level hardware protocol contract for Arduino microcontroller firmware. |
+| 📄 **[MQTT Interface Contract](file:///mnt/data/Backups/Documents/Capstone/codebase/contracts/mqtt_schema.md)** | JSON schemas and topic routes contract for FastAPI cloud engineers. |
+
+---
+
+## 🚀 Key Architectural Highlights
+
+- **Lock-Free Concurrency:** Uses `moodycamel::BlockingConcurrentQueue` to eliminate mutex bottlenecks and priority inversions.
+- **TinyFSM Deterministic Core:** Zero-dynamic-allocation state engine guaranteeing safe transitions between `Boot_Init`, `Idle`, `Offline_Idle`, `Inspection`, `DryClean`, `WetClean`, `Error`, and `Hardware_Fault`.
+- **Sub-Millisecond Atomic Safety:** Hardware emergency stops bypass the software queue using a release-fenced `std::atomic<bool>` flag, killing motor actuation within microseconds.
+- **Zero-Recompile Malleability:** All serial byte opcodes, interrupt triggers, MQTT routes, and YOLO class IDs are driven by JSON configuration.
+- **Power-Cut Durability:** Offline telemetry disk cache uses POSIX `fdatasync()` to commit data to physical flash immediately, guaranteeing zero data loss during sudden power disconnects.
+
+---
 
 ## 🏗️ Phased Execution Plan
-To ensure a stable build, the daemon is being constructed in four progressive phases. Each phase produces a standalone, testable binary.
 
-* **Phase 1: The Skeleton (FSM & Event Loop)** -- done
-  * Core C++17 application, lock-free event queue, and the full TinyFSM state machine, all driven by mock hardware/network/vision implementations. Boots, self-tests, runs a complete cleaning cycle, and reacts to E-Stops and network drops -- all without any real hardware, broker, or camera attached.
-* **Phase 2: Hardware Abstraction Layer**
-  * Establishing UART serial communication with the Arduino to dispatch physical commands and listen for hardware interrupts (E-Stops).
-* **Phase 3: Network & Telemetry Layer**
-  * Integrating Eclipse Paho MQTT for asynchronous cloud communication, including offline disk-caching to survive network drops.
-* **Phase 4: AI Vision Integration**
-  * Hooking up the camera pipeline and ONNX Runtime to parse bounding boxes and feed physical cleaning decisions back into the state machine.
+* **Phase 0: Integration Contracts** -- 🟢 **Done**
+  * Formal serial byte and MQTT JSON contracts documented and version-controlled.
+* **Phase 1: The Skeleton (FSM & Event Loop)** -- 🟢 **Done**
+  * Core C++17 daemon, lock-free MPSC queue, TinyFSM engine, mock modules, interactive CLI, and Catch2 test harness.
+* **Phase 2: Hardware Abstraction Layer & Malleability** -- 🟢 **Done**
+  * POSIX UART/Serial driver, background reader thread, configurable opcode lookup, systemd unit, and offline disk cache.
+* **Phase 3: Network & Telemetry Layer (MQTT Integration)** -- ⏳ **In Progress**
+  * Integrating Eclipse Paho MQTT client for live cloud telemetry synchronization and offline cache draining.
+* **Phase 4: AI Vision Integration** -- ⏳ **Upcoming**
+  * Hooking up the camera pipeline and ONNX Runtime for debris classification and automated cleaning decisions.
 
-## 🛠️ Build Instructions
+---
 
-**Prerequisites (Phase 1):**
-* Modern C++ compiler (C++17), CMake >= 3.16, and network access on first configure (dependencies are fetched via CMake `FetchContent`: nlohmann/json, moodycamel::ConcurrentQueue, tinyfsm, Catch2 -- no manual submodule setup needed)
+## 🛠️ Quickstart
 
-Phase 2-4 add real hardware/network/vision dependencies (a serial port, Eclipse Paho MQTT C++, OpenCV/ONNX Runtime) as each phase's mock is swapped for a real implementation.
-
-**Build and test:**
-```sh
+### 1. Build and Test
+```bash
 cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+*(40 / 40 Catch2 unit tests pass 100%).*
 
-**Run the daemon (mocks only, Phase 1):**
-```sh
+### 2. Run with Interactive Console (Mock Mode)
+```bash
 ./build/solar_edge_daemon config/daemon.config.json
 ```
-This boots through self-test into `Idle`/`Offline_Idle` and drops into an interactive console -- type `help` for the list of commands (`start`, `debris <type>`, `estop`, `network-lost`, etc.) to drive the FSM through a full cleaning cycle without any physical hardware attached.
+Type `help` in the interactive console for live commands (`start`, `debris <type>`, `estop`, `network-lost`, etc.).

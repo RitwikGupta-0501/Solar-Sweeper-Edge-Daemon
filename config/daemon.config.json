@@ -1,8 +1,6 @@
 {
   // All external parameters live here — nothing is hardcoded in the daemon.
-  // Phase 1 only truly reads system.* and mock.*; the mqtt/serial/vision
-  // sections are parsed and stored now so Phase 2-4 don't need a config
-  // schema migration, but their values are not validated or used yet.
+  // When an opcode, topic name, or model class ID changes, update this file.
   "system": {
     "log_level": "info",
     "total_sectors": 6,
@@ -12,23 +10,61 @@
   },
   "mock": {
     "enabled": true,
+    "hardware_driver": true,
+    "network_client": true,
+    "vision_engine": true,
     "hardware_fault_injection": false,
     "network_start_offline": false,
     "vision_cycle_ms": 800,
     "cleaning_duration_ms": 500
   },
+  "serial": {
+    "device_path": "/dev/ttyACM0",
+    "baud_rate": 115200,
+    "timeout_ms": 500,
+    "protocol_mode": "single_byte",
+    "commands": {
+      "dry_clean": "0x01",
+      "wet_clean": "0x02",
+      "emergency_halt": "0xFF",
+      "ping": "0x00"
+    },
+    "interrupts": {
+      "0xE1": { "event": "estop", "reason": "limit_switch_hit" },
+      "0xE2": { "event": "estop", "reason": "motor_stall" },
+      "0xD0": { "event": "clean_complete" },
+      "0xA0": { "event": "ack_ping" },
+      "0xA1": { "event": "ack" },
+      "0xA2": { "event": "ack" },
+      "0xAF": { "event": "ack" }
+    }
+  },
   "mqtt": {
     "broker_host": "localhost",
     "broker_port": 1883,
     "client_id": "edge-daemon-01",
-    "topic_prefix": "solarsweeper/robot01"
-  },
-  "serial": {
-    "device_path": "/dev/ttyACM0",
-    "baud_rate": 115200
+    "topic_prefix": "solarsweeper/robot01",
+    "keepalive_sec": 10,
+    "cache_path": "/var/lib/edge-daemon/cache.json",
+    "routes": [
+      { "topic": "cmd/start_clean", "action": "START" },
+      { "topic": "cmd/abort",       "action": "ABORT" },
+      { "topic": "cmd/reset",       "action": "RESET" }
+    ],
+    "telemetry_topics": {
+      "status": "telemetry/status",
+      "clean_result": "telemetry/clean_result",
+      "alert": "telemetry/alert"
+    }
   },
   "vision": {
     "model_path": "models/debris_detector.onnx",
-    "camera_index": 0
+    "camera_index": 0,
+    "confidence_threshold": 0.65,
+    "class_map": {
+      "0": { "name": "dust",          "action": "dry_clean" },
+      "1": { "name": "leaf",          "action": "dry_clean" },
+      "2": { "name": "bird_dropping", "action": "wet_clean" }
+    }
   }
 }
