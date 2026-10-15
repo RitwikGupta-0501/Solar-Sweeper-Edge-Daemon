@@ -94,17 +94,7 @@ MockConfig ParseMockConfig(const json& root) {
     MockConfig cfg;
 
     cfg.enabled = RequireBool(section, "mock", "enabled");
-    cfg.hardwareDriver = section.value("hardware_driver", cfg.enabled);
-    cfg.networkClient = section.value("network_client", cfg.enabled);
-    cfg.visionEngine = section.value("vision_engine", cfg.enabled);
 
-    // If global mock is disabled and no sub-driver overrides are specified,
-    // verify we have driver support. Vision engine is not implemented yet in Phase 2.
-    if (!cfg.enabled && !section.contains("hardware_driver") && !section.contains("network_client") && !section.contains("vision_engine")) {
-        cfg.hardwareDriver = false;
-        cfg.networkClient = false;
-        cfg.visionEngine = false;
-    }
 
     cfg.hardwareFaultInjection = section.value("hardware_fault_injection", false);
     cfg.networkStartOffline = section.value("network_start_offline", false);

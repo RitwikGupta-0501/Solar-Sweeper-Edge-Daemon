@@ -4,15 +4,17 @@
 #include <string>
 #include <thread>
 
+#include <asio.hpp>
+
 #include "solaredge/Config/Config.h"
 #include "solaredge/Core/EventQueue.h"
 #include "solaredge/Interfaces/IHardwareDriver.h"
 
-namespace sse::hardware {
+namespace sse::hw {
 
 class SerialHardwareDriver : public iface::IHardwareDriver {
 public:
-    SerialHardwareDriver(core::EventQueue& queue, config::SerialConfig config, int bootTimeoutMs = 5000);
+    SerialHardwareDriver(core::EventQueue& queue, config::SerialConfig config);
     ~SerialHardwareDriver() override;
 
     void requestSelfTest() override;
@@ -22,25 +24,21 @@ public:
     void emergencyHalt() override;
     void shutdown() override;
 
-    // Helper for testing / inspecting port state
-    bool isPortOpen() const { return fd_ >= 0; }
-
 private:
-    bool OpenPort();
-    void ClosePort();
-    bool WriteByte(uint8_t byte);
-    void ReaderLoop();
-    void HandleIncomingByte(uint8_t byte);
+    void doRead();
+    void processLine(const std::string& line);
+    void sendCommand(const std::string& cmd);
 
     core::EventQueue& queue_;
     config::SerialConfig config_;
-    int bootTimeoutMs_;
 
-    int fd_ = -1;
-    std::atomic<bool> running_{false};
-    std::atomic<bool> awaitingPingAck_{false};
-    std::atomic<int> currentSector_{0};
-    std::thread readerThread_;
+    asio::io_context ioContext_;
+    asio::serial_port serialPort_;
+    std::thread ioThread_;
+
+    asio::streambuf readBuf_;
+    
+    std::atomic<bool> isShuttingDown_{false};
 };
 
-} // namespace sse::hardware
+} // namespace sse::hw

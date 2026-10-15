@@ -25,6 +25,24 @@ void EdgeStateMachine::ResetContextForTesting() {
 void EdgeStateMachine::AdvanceSectorOrFinish() {
     ctx.currentSectorIndex++;
     if (ctx.currentSectorIndex >= ctx.totalSectors) {
+        float totalDuration = 0.0f;
+        if (ctx.cycleStartTime != std::chrono::steady_clock::time_point{}) {
+            totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - ctx.cycleStartTime).count() / 1000.0f;
+        }
+        float avgInf = 0.0f;
+        if (!ctx.inferenceTimesMs.empty()) {
+            float sum = 0.0f;
+            for (float t : ctx.inferenceTimesMs) {
+                sum += t;
+            }
+            avgInf = sum / static_cast<float>(ctx.inferenceTimesMs.size());
+        }
+        if (ctx.network) {
+            ctx.network->publishCycleSummary(totalDuration, ctx.pumpUptimeSeconds, ctx.totalSectors,
+                                             ctx.birdDroppingCount, ctx.dustCount, ctx.leafCount, avgInf);
+        }
+
         if (ctx.networkAvailable) {
             transit<Idle>();
         } else {

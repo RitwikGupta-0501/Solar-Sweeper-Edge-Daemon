@@ -16,8 +16,12 @@ public:
     // start offline — exercises Boot_Init's offline-boot path).
     virtual void initialize() = 0;
 
-    // Fire-and-forget telemetry publish. Phase 1's mock only logs it.
-    virtual void publishTelemetry(const std::string& topic, const std::string& jsonPayload) = 0;
+    // Fire-and-forget telemetry publish methods
+    virtual void publishStatus(const std::string& state, int sector) = 0;
+    virtual void publishDetection(int sector, const std::string& type, float conf, float cameraMs, float infMs) = 0;
+    virtual void publishHealth(float cpuTemp, int ramMb) = 0;
+    virtual void publishCycleSummary(float duration, float pumpUptime, int sectors, int bird, int dust, int leaf, float avgInf) = 0;
+    virtual void publishAlert(const std::string& severity, const std::string& code, const std::string& reason) = 0;
 
     virtual bool isConnected() const = 0;
 

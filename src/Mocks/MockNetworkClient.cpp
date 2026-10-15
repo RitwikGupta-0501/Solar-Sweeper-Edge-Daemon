@@ -32,9 +32,63 @@ void MockNetworkClient::initialize() {
     cv_.notify_one();
 }
 
-void MockNetworkClient::publishTelemetry(const std::string& topic, const std::string& jsonPayload) {
+void MockNetworkClient::publishStatus(const std::string& state, int sector) {
     publishCallCount_.fetch_add(1, std::memory_order_relaxed);
-    util::Logger::Debug("MockNetworkClient", "publish " + topic + " -> " + jsonPayload);
+    statusCallCount_.fetch_add(1, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(inspectMutex_);
+        lastStatusState_ = state;
+        lastStatusSector_ = sector;
+    }
+    util::Logger::Debug("MockNetworkClient", "publishStatus: " + state + " (sector " + std::to_string(sector) + ")");
+}
+
+void MockNetworkClient::publishDetection(int sector, const std::string& type, float conf, float cameraMs, float infMs) {
+    (void)conf;
+    (void)cameraMs;
+    (void)infMs;
+    publishCallCount_.fetch_add(1, std::memory_order_relaxed);
+    detectionCallCount_.fetch_add(1, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(inspectMutex_);
+        lastDetectionType_ = type;
+    }
+    util::Logger::Debug("MockNetworkClient", "publishDetection: " + type + " (sector " + std::to_string(sector) + ")");
+}
+
+void MockNetworkClient::publishHealth(float cpuTemp, int ramMb) {
+    (void)cpuTemp;
+    (void)ramMb;
+    publishCallCount_.fetch_add(1, std::memory_order_relaxed);
+    util::Logger::Debug("MockNetworkClient", "publishHealth");
+}
+
+void MockNetworkClient::publishCycleSummary(float duration, float pumpUptime, int sectors, int bird, int dust, int leaf, float avgInf) {
+    (void)pumpUptime;
+    (void)bird;
+    (void)dust;
+    (void)leaf;
+    (void)avgInf;
+    publishCallCount_.fetch_add(1, std::memory_order_relaxed);
+    cycleSummaryCallCount_.fetch_add(1, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(inspectMutex_);
+        lastCycleDuration_ = duration;
+        lastCycleSectors_ = sectors;
+    }
+    util::Logger::Debug("MockNetworkClient", "publishCycleSummary: " + std::to_string(duration) + "s");
+}
+
+void MockNetworkClient::publishAlert(const std::string& severity, const std::string& code, const std::string& reason) {
+    publishCallCount_.fetch_add(1, std::memory_order_relaxed);
+    alertCallCount_.fetch_add(1, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(inspectMutex_);
+        lastAlertSeverity_ = severity;
+        lastAlertCode_ = code;
+        lastAlertReason_ = reason;
+    }
+    util::Logger::Debug("MockNetworkClient", "publishAlert: [" + severity + "] " + code + " - " + reason);
 }
 
 bool MockNetworkClient::isConnected() const {
@@ -63,6 +117,62 @@ void MockNetworkClient::simulateNetworkRestore() {
 
 int MockNetworkClient::callCount() const {
     return publishCallCount_.load();
+}
+
+int MockNetworkClient::statusCallCount() const {
+    return statusCallCount_.load();
+}
+
+int MockNetworkClient::detectionCallCount() const {
+    return detectionCallCount_.load();
+}
+
+int MockNetworkClient::alertCallCount() const {
+    return alertCallCount_.load();
+}
+
+int MockNetworkClient::cycleSummaryCallCount() const {
+    return cycleSummaryCallCount_.load();
+}
+
+std::string MockNetworkClient::lastStatusState() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastStatusState_;
+}
+
+int MockNetworkClient::lastStatusSector() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastStatusSector_;
+}
+
+std::string MockNetworkClient::lastAlertSeverity() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastAlertSeverity_;
+}
+
+std::string MockNetworkClient::lastAlertCode() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastAlertCode_;
+}
+
+std::string MockNetworkClient::lastAlertReason() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastAlertReason_;
+}
+
+std::string MockNetworkClient::lastDetectionType() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastDetectionType_;
+}
+
+float MockNetworkClient::lastCycleDuration() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastCycleDuration_;
+}
+
+int MockNetworkClient::lastCycleSectors() const {
+    std::lock_guard<std::mutex> lock(inspectMutex_);
+    return lastCycleSectors_;
 }
 
 void MockNetworkClient::WorkerLoop() {

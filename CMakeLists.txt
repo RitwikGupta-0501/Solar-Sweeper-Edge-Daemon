@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(SolarSweeperEdgeDaemon LANGUAGES CXX)
+project(SolarSweeperEdgeDaemon LANGUAGES C CXX)
 
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -49,6 +51,27 @@ FetchContent_Declare(Catch2
   GIT_TAG v3.5.4)
 FetchContent_MakeAvailable(Catch2)
 
+# --- asio: standalone async I/O (header-only) ---
+FetchContent_Declare(asio
+  GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+  GIT_TAG asio-1-30-2)
+FetchContent_MakeAvailable(asio)
+add_library(asio_headers INTERFACE)
+target_include_directories(asio_headers INTERFACE ${asio_SOURCE_DIR}/asio/include)
+target_compile_definitions(asio_headers INTERFACE ASIO_STANDALONE)
+
+# --- paho.mqtt.c ---
+FetchContent_Declare(paho_c
+  GIT_REPOSITORY https://github.com/eclipse/paho.mqtt.c.git
+  GIT_TAG v1.3.13)
+set(PAHO_WITH_SSL OFF CACHE BOOL "")
+set(PAHO_BUILD_SHARED OFF CACHE BOOL "")
+set(PAHO_BUILD_STATIC ON CACHE BOOL "")
+set(PAHO_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(PAHO_BUILD_DOCUMENTATION OFF CACHE BOOL "" FORCE)
+set(PAHO_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(paho_c)
+
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_library(daemon_core STATIC
@@ -60,6 +83,9 @@ add_library(daemon_core STATIC
   src/Mocks/MockNetworkClient.cpp
   src/Mocks/MockHardwareDriver.cpp
   src/Mocks/MockVisionEngine.cpp
+  src/Hardware/SerialHardwareDriver.cpp
+  src/Network/MqttNetworkClient.cpp
+  src/Network/TelemetrySpooler.cpp
   src/App/Application.cpp
   src/Util/Logger.cpp
 )
@@ -68,6 +94,8 @@ target_link_libraries(daemon_core PUBLIC
   tinyfsm
   concurrentqueue_headers
   nlohmann_json::nlohmann_json
+  asio_headers
+  paho-mqtt3a-static
   Threads::Threads
 )
 

@@ -16,6 +16,11 @@
 #include "solaredge/Mocks/MockNetworkClient.h"
 #include "solaredge/Mocks/MockVisionEngine.h"
 #include "solaredge/Util/Logger.h"
+#include "solaredge/Hardware/SerialHardwareDriver.h"
+#include "solaredge/Mocks/MockHardwareDriver.h"
+#include "solaredge/Mocks/MockNetworkClient.h"
+#include "solaredge/Mocks/MockVisionEngine.h"
+#include "solaredge/Network/MqttNetworkClient.h"
 
 namespace sse::app {
 
@@ -33,35 +38,14 @@ events::DebrisType ParseDebrisType(const std::string& text) {
 Application::Application(config::Config config, bool enableConsole)
     : config_(std::move(config)),
       enableConsole_(enableConsole),
-      queue_(config_.system().queueCapacityHint) {
-    
-    // Dynamic Factory: selects Mock vs Real implementations based on configuration flags
-    if (config_.mock().hardwareDriver) {
-        util::Logger::Info("Application", "Using MockHardwareDriver");
-        hardware_ = std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock());
-    } else {
-        util::Logger::Info("Application", "Instantiating real SerialHardwareDriver on " + config_.serial().devicePath);
-        hardware_ = std::make_unique<hardware::SerialHardwareDriver>(queue_, config_.serial(), config_.system().bootTimeoutMs);
-    }
-
-    if (config_.mock().networkClient) {
-        util::Logger::Info("Application", "Using MockNetworkClient");
-        network_ = std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock());
-    } else {
-        // Will swap to PahoNetworkClient in Phase 3
-        util::Logger::Info("Application", "Using MockNetworkClient (Real MQTT client scheduled for Phase 3)");
-        network_ = std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock());
-    }
-
-    if (config_.mock().visionEngine) {
-        util::Logger::Info("Application", "Using MockVisionEngine");
-        vision_ = std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock());
-    } else {
-        // Will swap to OnnxVisionEngine in Phase 4
-        util::Logger::Info("Application", "Using MockVisionEngine (Real ONNX vision scheduled for Phase 4)");
-        vision_ = std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock());
-    }
-}
+      queue_(config_.system().queueCapacityHint),
+      hardware_(config_.mock().enabled 
+          ? static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock()))
+          : static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<hw::SerialHardwareDriver>(queue_, config_.serial()))),
+      network_(config_.mock().enabled
+          ? static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock()))
+          : static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<network::MqttNetworkClient>(queue_, config_))),
+      vision_(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock())) {}
 
 Application::~Application() {
     if (hardware_) hardware_->shutdown();
@@ -79,7 +63,7 @@ void Application::RequestShutdown() {
 
 int Application::run() {
     util::Logger::SetLevel(config_.system().logLevel);
-    util::Logger::Info("Application", "Solar Sweeper Edge Daemon starting (Malleable Architecture, Phase 2 HAL ready)");
+    util::Logger::Info("Application", "Solar Sweeper Edge Daemon starting (Phase 3)");
 
     core::EdgeStateMachine::SetContext(hardware_.get(), network_.get(), vision_.get(), &queue_,
                                         config_.system().totalSectors, config_.system().bootMaxRetries);
@@ -131,14 +115,17 @@ void Application::ConsoleLoop() {
         } else if (command == "clear") {
             queue_.push(events::EvSectorClear{{}, 0});
         } else if (command == "network-lost") {
-            queue_.push(events::EvNetworkLost{});
+            if (auto m = dynamic_cast<mocks::MockNetworkClient*>(network_.get())) m->simulateNetworkLoss();
         } else if (command == "network-restored") {
-            queue_.push(events::EvNetworkRestored{});
+            if (auto m = dynamic_cast<mocks::MockNetworkClient*>(network_.get())) m->simulateNetworkRestore();
         } else if (command == "estop") {
             std::string reason;
             std::getline(iss, reason);
-            core::g_estop_flag.store(true, std::memory_order_release);
-            queue_.push(events::EvEmergencyStop{{}, reason.empty() ? "console" : reason});
+            if (auto m = dynamic_cast<mocks::MockHardwareDriver*>(hardware_.get())) {
+                m->triggerSyntheticEstop(reason.empty() ? "console" : reason);
+            } else {
+                hardware_->emergencyHalt();
+            }
         } else if (command == "estop-clear") {
             queue_.push(events::EvEmergencyCleared{});
         } else if (command == "quit" || command == "exit") {
