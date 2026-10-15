@@ -8,6 +8,17 @@ namespace sse::events {
 
 enum class DebrisType { None, Dust, Leaf, BirdDropping, Unknown };
 
+inline std::string DebrisTypeToString(DebrisType type) {
+    switch (type) {
+        case DebrisType::Dust: return "dust";
+        case DebrisType::Leaf: return "leaf";
+        case DebrisType::BirdDropping: return "bird_dropping";
+        case DebrisType::None: return "none";
+        case DebrisType::Unknown:
+        default: return "unknown";
+    }
+}
+
 // Sector-sequence bookkeeping (currentSectorIndex vs totalSectors) is kept
 // in the FSM's shared Context, not here — real hardware/vision drivers in
 // later phases won't know the mission-level sector plan either, so keeping
@@ -19,6 +30,8 @@ struct EvDebrisDetected : tinyfsm::Event {
     int sectorId = 0;
     DebrisType debrisType = DebrisType::Unknown;
     float confidence = 0.0f;
+    float cameraCaptureMs = 0.0f;
+    float inferenceTimeMs = 0.0f;
 };
 
 struct EvSectorClear : tinyfsm::Event {

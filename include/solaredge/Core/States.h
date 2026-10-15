@@ -1,6 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <string>
+#include <vector>
 
 #include <tinyfsm.hpp>
 
@@ -46,6 +48,15 @@ public:
         // carry data directly into transit<>(), so it's threaded through
         // here instead.
         std::string lastFaultReason;
+
+        // Telemetry & cycle profiling metrics
+        std::chrono::steady_clock::time_point cycleStartTime{};
+        float pumpUptimeSeconds = 0.0f;
+        int birdDroppingCount = 0;
+        int dustCount = 0;
+        int leafCount = 0;
+        std::vector<float> inferenceTimesMs{};
+        std::chrono::steady_clock::time_point wetCleanStartTime{};
     };
 
     static Context ctx;
@@ -118,6 +129,12 @@ public:
             util::Logger::Warn("FSM", "discarded EvStart -- estop active");
             return;
         }
+        ctx.cycleStartTime = std::chrono::steady_clock::now();
+        ctx.pumpUptimeSeconds = 0.0f;
+        ctx.birdDroppingCount = 0;
+        ctx.dustCount = 0;
+        ctx.leafCount = 0;
+        ctx.inferenceTimesMs.clear();
         ctx.currentSectorIndex = 0;
         transit<Inspection>();
     }
@@ -211,6 +228,7 @@ public:
         // real hardware -- revisit this line then.
         g_estop_flag.store(false, std::memory_order_release);
 
+        if (ctx.network) ctx.network->publishStatus("Boot_Init", -1);
         if (ctx.hardware) ctx.hardware->requestSelfTest();
         if (ctx.network) ctx.network->initialize();
         if (ctx.vision) ctx.vision->initialize();
@@ -284,6 +302,9 @@ public:
     void entry() override {
         util::Logger::Info("FSM", "Idle: awaiting start");
         SafePark();
+        if (ctx.network) {
+            ctx.network->publishStatus("Idle", -1);
+        }
     }
 
     void react(events::EvNetworkLost const&) override {
@@ -300,6 +321,9 @@ public:
     void entry() override {
         util::Logger::Warn("FSM", "Offline_Idle: degraded mode, telemetry caching only");
         SafePark();
+        if (ctx.network) {
+            ctx.network->publishStatus("Offline_Idle", -1);
+        }
     }
 
     void react(events::EvNetworkRestored const&) override { ReconnectToIdle(); }
@@ -316,6 +340,9 @@ public:
 
     void entry() override {
         util::Logger::Info("FSM", "Inspection: sector " + std::to_string(ctx.currentSectorIndex));
+        if (ctx.network) {
+            ctx.network->publishStatus("Inspection", ctx.currentSectorIndex);
+        }
         if (ctx.vision) {
             ctx.vision->requestInference(ctx.currentSectorIndex);
         }
@@ -326,6 +353,22 @@ public:
             util::Logger::Warn("FSM", "discarded EvDebrisDetected -- estop active");
             return;
         }
+        if (event.debrisType == events::DebrisType::BirdDropping) {
+            ctx.birdDroppingCount++;
+        } else if (event.debrisType == events::DebrisType::Dust) {
+            ctx.dustCount++;
+        } else if (event.debrisType == events::DebrisType::Leaf) {
+            ctx.leafCount++;
+        }
+        if (event.inferenceTimeMs > 0.0f) {
+            ctx.inferenceTimesMs.push_back(event.inferenceTimeMs);
+        }
+
+        if (ctx.network) {
+            ctx.network->publishDetection(event.sectorId, events::DebrisTypeToString(event.debrisType),
+                                          event.confidence, event.cameraCaptureMs, event.inferenceTimeMs);
+        }
+
         if (event.debrisType == events::DebrisType::BirdDropping) {
             transit<WetClean>();
         } else {
@@ -363,6 +406,9 @@ class DryClean : public CleaningStateBase {
 public:
     void entry() override {
         util::Logger::Info("FSM", "DryClean: sector " + std::to_string(ctx.currentSectorIndex));
+        if (ctx.network) {
+            ctx.network->publishStatus("DryClean", ctx.currentSectorIndex);
+        }
         if (ctx.hardware) {
             ctx.hardware->beginDryClean(ctx.currentSectorIndex);
         }
@@ -373,9 +419,20 @@ class WetClean : public CleaningStateBase {
 public:
     void entry() override {
         util::Logger::Info("FSM", "WetClean: sector " + std::to_string(ctx.currentSectorIndex));
+        ctx.wetCleanStartTime = std::chrono::steady_clock::now();
+        if (ctx.network) {
+            ctx.network->publishStatus("WetClean", ctx.currentSectorIndex);
+        }
         if (ctx.hardware) {
             ctx.hardware->beginWetClean(ctx.currentSectorIndex);
         }
+    }
+
+    void exit() override {
+        CleaningStateBase::exit();
+        auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - ctx.wetCleanStartTime).count();
+        ctx.pumpUptimeSeconds += elapsedMs / 1000.0f;
     }
 };
 
@@ -391,6 +448,10 @@ public:
 
     void entry() override {
         util::Logger::Error("FSM", "Error: emergency stop latched (" + ctx.lastFaultReason + ")");
+        if (ctx.network) {
+            ctx.network->publishStatus("Error", ctx.currentSectorIndex);
+            ctx.network->publishAlert("CRITICAL", "ESTOP_TRIGGERED", ctx.lastFaultReason);
+        }
         if (ctx.hardware) {
             ctx.hardware->emergencyHalt();
         }
@@ -410,6 +471,10 @@ public:
     void entry() override {
         util::Logger::Error("FSM", "Hardware_Fault: boot self-test failed permanently (" + ctx.lastFaultReason +
                                         ")");
+        if (ctx.network) {
+            ctx.network->publishStatus("Hardware_Fault", -1);
+            ctx.network->publishAlert("CRITICAL", "BOOT_SELF_TEST_FAILED", ctx.lastFaultReason);
+        }
     }
 };
 

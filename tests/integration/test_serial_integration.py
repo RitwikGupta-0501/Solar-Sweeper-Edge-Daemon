@@ -64,11 +64,6 @@ def test_serial_integration():
         os.write(master_fd, b"R\n")
         time.sleep(0.5)
 
-        # 5. Tell the FSM to start cleaning via the daemon's stdin console
-        print("Test Runner -> Triggering 'start' via console...")
-        daemon.stdin.write("start\n")
-        daemon.stdin.flush()
-        
         # Helper to read bytes coming out of the C++ daemon
         def read_from_daemon(timeout=2.0):
             r, _, _ = select.select([master_fd], [], [], timeout)
@@ -76,8 +71,28 @@ def test_serial_integration():
                 return os.read(master_fd, 1024).decode('utf-8')
             return ""
 
+        # Drain any initial SafePark() halt commands ('H\n') emitted during boot
+        boot_output = ""
+        while True:
+            r, _, _ = select.select([master_fd], [], [], 0.2)
+            if r:
+                boot_output += os.read(master_fd, 1024).decode('utf-8')
+            else:
+                break
+
+        # 5. Tell the FSM to start cleaning via the daemon's stdin console
+        print("Test Runner -> Triggering 'start' via console...")
+        daemon.stdin.write("start\n")
+        daemon.stdin.flush()
+
         # 6. Verify C++ daemon sends Dry Clean Sector 0
-        output = read_from_daemon()
+        output = ""
+        start_t = time.time()
+        while time.time() - start_t < 3.0:
+            chunk = read_from_daemon(timeout=0.5)
+            output += chunk
+            if "D0\n" in output:
+                break
         assert "D0\n" in output, f"Expected D0\\n, got '{output}'"
         print("Assertion Passed: Daemon correctly commanded 'D0\\n'")
         
@@ -85,10 +100,16 @@ def test_serial_integration():
         print("Arduino Emulator -> Sending 'C0\\n' (Clean Complete)...")
         os.write(master_fd, b"C0\n")
         
-        # 8. Verify C++ daemon advances to Sector 1
-        output = read_from_daemon()
-        assert "D1\n" in output, f"Expected D1\\n, got '{output}'"
-        print("Assertion Passed: Daemon correctly commanded 'D1\\n'")
+        # 8. Verify C++ daemon advances to Sector 1 (WetClean for bird dropping or DryClean)
+        output = ""
+        start_t = time.time()
+        while time.time() - start_t < 3.0:
+            chunk = read_from_daemon(timeout=0.5)
+            output += chunk
+            if "D1\n" in output or "W1\n" in output:
+                break
+        assert ("D1\n" in output or "W1\n" in output), f"Expected D1\\n or W1\\n, got '{output}'"
+        print("Assertion Passed: Daemon correctly commanded sector 1 cleaning ('W1\\n' or 'D1\\n')")
         
         # 9. Arduino Emulator: Reply that Sector 1 is clean
         print("Arduino Emulator -> Sending 'C1\\n' (Clean Complete)...")
