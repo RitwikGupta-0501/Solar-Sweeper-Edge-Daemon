@@ -20,7 +20,11 @@ public:
     ~MockNetworkClient() override;
 
     void initialize() override;
-    void publishTelemetry(const std::string& topic, const std::string& jsonPayload) override;
+    void publishStatus(const std::string& state, int sector) override;
+    void publishDetection(int sector, const std::string& type, float conf, float cameraMs, float infMs) override;
+    void publishHealth(float cpuTemp, int ramMb) override;
+    void publishCycleSummary(float duration, float pumpUptime, int sectors, int bird, int dust, int leaf, float avgInf) override;
+    void publishAlert(const std::string& severity, const std::string& code, const std::string& reason) override;
     bool isConnected() const override;
     void shutdown() override;
 
@@ -30,6 +34,19 @@ public:
     void simulateNetworkRestore();
 
     int callCount() const;
+    int statusCallCount() const;
+    int detectionCallCount() const;
+    int alertCallCount() const;
+    int cycleSummaryCallCount() const;
+
+    std::string lastStatusState() const;
+    int lastStatusSector() const;
+    std::string lastAlertSeverity() const;
+    std::string lastAlertCode() const;
+    std::string lastAlertReason() const;
+    std::string lastDetectionType() const;
+    float lastCycleDuration() const;
+    int lastCycleSectors() const;
 
 private:
     void WorkerLoop();
@@ -41,6 +58,20 @@ private:
     std::atomic<bool> running_{false};
     std::atomic<bool> connected_{false};
     std::atomic<int> publishCallCount_{0};
+    std::atomic<int> statusCallCount_{0};
+    std::atomic<int> detectionCallCount_{0};
+    std::atomic<int> alertCallCount_{0};
+    std::atomic<int> cycleSummaryCallCount_{0};
+
+    mutable std::mutex inspectMutex_;
+    std::string lastStatusState_;
+    int lastStatusSector_ = -1;
+    std::string lastAlertSeverity_;
+    std::string lastAlertCode_;
+    std::string lastAlertReason_;
+    std::string lastDetectionType_;
+    float lastCycleDuration_ = 0.0f;
+    int lastCycleSectors_ = 0;
 
     std::mutex mutex_;
     std::condition_variable cv_;
