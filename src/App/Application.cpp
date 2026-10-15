@@ -15,6 +15,7 @@
 #include "solaredge/Mocks/MockHardwareDriver.h"
 #include "solaredge/Mocks/MockNetworkClient.h"
 #include "solaredge/Mocks/MockVisionEngine.h"
+#include "solaredge/Network/MqttNetworkClient.h"
 
 namespace sse::app {
 
@@ -36,7 +37,9 @@ Application::Application(config::Config config, bool enableConsole)
       hardware_(config_.mock().enabled 
           ? static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock()))
           : static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<hw::SerialHardwareDriver>(queue_, config_.serial()))),
-      network_(std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock())),
+      network_(config_.mock().enabled
+          ? static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock()))
+          : static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<network::MqttNetworkClient>(queue_, config_))),
       vision_(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock())) {}
 
 Application::~Application() {
@@ -55,7 +58,7 @@ void Application::RequestShutdown() {
 
 int Application::run() {
     util::Logger::SetLevel(config_.system().logLevel);
-    util::Logger::Info("Application", "Solar Sweeper Edge Daemon starting (Phase 1 skeleton, mocks only)");
+    util::Logger::Info("Application", "Solar Sweeper Edge Daemon starting (Phase 3)");
 
     core::EdgeStateMachine::SetContext(hardware_.get(), network_.get(), vision_.get(), &queue_,
                                         config_.system().totalSectors, config_.system().bootMaxRetries);
