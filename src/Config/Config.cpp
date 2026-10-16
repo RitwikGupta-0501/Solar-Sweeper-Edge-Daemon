@@ -94,7 +94,9 @@ MockConfig ParseMockConfig(const json& root) {
     MockConfig cfg;
 
     cfg.enabled = RequireBool(section, "mock", "enabled");
-
+    cfg.hardwareDriver = section.value("hardware_driver", cfg.enabled);
+    cfg.networkClient = section.value("network_client", cfg.enabled);
+    cfg.visionEngine = section.value("vision_engine", cfg.enabled);
 
     cfg.hardwareFaultInjection = section.value("hardware_fault_injection", false);
     cfg.networkStartOffline = section.value("network_start_offline", false);

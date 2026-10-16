@@ -36,13 +36,13 @@ Application::Application(config::Config config, bool enableConsole)
     : config_(std::move(config)),
       enableConsole_(enableConsole),
       queue_(config_.system().queueCapacityHint),
-      hardware_(config_.mock().enabled 
+      hardware_((config_.mock().enabled && config_.mock().hardwareDriver)
           ? static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock()))
           : static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<hw::SerialHardwareDriver>(queue_, config_.serial()))),
-      network_(config_.mock().enabled
+      network_((config_.mock().enabled && config_.mock().networkClient)
           ? static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock()))
           : static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<network::MqttNetworkClient>(queue_, config_))),
-      vision_(config_.mock().enabled
+      vision_(((config_.mock().enabled && config_.mock().visionEngine) || config_.vision().modelPath.empty())
           ? static_cast<std::unique_ptr<iface::IVisionEngine>>(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock()))
           : static_cast<std::unique_ptr<iface::IVisionEngine>>(std::make_unique<vision::OnnxVisionEngine>(queue_, config_))) {}
 
