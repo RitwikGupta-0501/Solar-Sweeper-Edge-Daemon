@@ -14,6 +14,8 @@ add_executable(solar_edge_tests
   test_telemetry_spooler.cpp
   test_mqtt_network_client.cpp
   test_fsm_telemetry.cpp
+  test_spatial_mapper.cpp
+  test_vision_engine.cpp
 )
 
 target_link_libraries(solar_edge_tests PRIVATE daemon_core Catch2::Catch2WithMain)
