@@ -110,6 +110,7 @@ add_library(daemon_core STATIC
   src/Mocks/MockVisionEngine.cpp
   src/Network/MqttNetworkClient.cpp
   src/Network/TelemetrySpooler.cpp
+  src/Vision/V4L2CameraPipeline.cpp
   src/App/Application.cpp
   src/Util/Logger.cpp
 )
