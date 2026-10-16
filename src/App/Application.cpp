@@ -15,12 +15,9 @@
 #include "solaredge/Mocks/MockHardwareDriver.h"
 #include "solaredge/Mocks/MockNetworkClient.h"
 #include "solaredge/Mocks/MockVisionEngine.h"
-#include "solaredge/Util/Logger.h"
-#include "solaredge/Hardware/SerialHardwareDriver.h"
-#include "solaredge/Mocks/MockHardwareDriver.h"
-#include "solaredge/Mocks/MockNetworkClient.h"
-#include "solaredge/Mocks/MockVisionEngine.h"
 #include "solaredge/Network/MqttNetworkClient.h"
+#include "solaredge/Vision/OnnxVisionEngine.h"
+#include "solaredge/Util/Logger.h"
 
 namespace sse::app {
 
@@ -39,13 +36,15 @@ Application::Application(config::Config config, bool enableConsole)
     : config_(std::move(config)),
       enableConsole_(enableConsole),
       queue_(config_.system().queueCapacityHint),
-      hardware_(config_.mock().enabled 
+      hardware_((config_.mock().enabled && config_.mock().hardwareDriver)
           ? static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<mocks::MockHardwareDriver>(queue_, config_.mock()))
           : static_cast<std::unique_ptr<iface::IHardwareDriver>>(std::make_unique<hw::SerialHardwareDriver>(queue_, config_.serial()))),
-      network_(config_.mock().enabled
+      network_((config_.mock().enabled && config_.mock().networkClient)
           ? static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<mocks::MockNetworkClient>(queue_, config_.mock()))
           : static_cast<std::unique_ptr<iface::INetworkClient>>(std::make_unique<network::MqttNetworkClient>(queue_, config_))),
-      vision_(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock())) {}
+      vision_(((config_.mock().enabled && config_.mock().visionEngine) || config_.vision().modelPath.empty())
+          ? static_cast<std::unique_ptr<iface::IVisionEngine>>(std::make_unique<mocks::MockVisionEngine>(queue_, config_.mock()))
+          : static_cast<std::unique_ptr<iface::IVisionEngine>>(std::make_unique<vision::OnnxVisionEngine>(queue_, config_))) {}
 
 Application::~Application() {
     if (hardware_) hardware_->shutdown();
@@ -63,7 +62,7 @@ void Application::RequestShutdown() {
 
 int Application::run() {
     util::Logger::SetLevel(config_.system().logLevel);
-    util::Logger::Info("Application", "Solar Sweeper Edge Daemon starting (Phase 3)");
+    util::Logger::Info("Application", "Solar Sweeper Edge Daemon starting (Phase 4)");
 
     core::EdgeStateMachine::SetContext(hardware_.get(), network_.get(), vision_.get(), &queue_,
                                         config_.system().totalSectors, config_.system().bootMaxRetries);

@@ -94,7 +94,9 @@ MockConfig ParseMockConfig(const json& root) {
     MockConfig cfg;
 
     cfg.enabled = RequireBool(section, "mock", "enabled");
-
+    cfg.hardwareDriver = section.value("hardware_driver", cfg.enabled);
+    cfg.networkClient = section.value("network_client", cfg.enabled);
+    cfg.visionEngine = section.value("vision_engine", cfg.enabled);
 
     cfg.hardwareFaultInjection = section.value("hardware_fault_injection", false);
     cfg.networkStartOffline = section.value("network_start_offline", false);
@@ -194,8 +196,18 @@ VisionConfig ParseVisionConfig(const json& root) {
     const json& section = RequireSection(root, "vision");
     VisionConfig cfg;
     cfg.modelPath = section.value("model_path", cfg.modelPath);
+    cfg.cameraDevice = section.value("camera_device", cfg.cameraDevice);
     cfg.cameraIndex = section.value("camera_index", cfg.cameraIndex);
+    cfg.imageWidth = section.value("image_width", cfg.imageWidth);
+    cfg.imageHeight = section.value("image_height", cfg.imageHeight);
+    cfg.framerate = section.value("framerate", cfg.framerate);
     cfg.confidenceThreshold = section.value("confidence_threshold", cfg.confidenceThreshold);
+    cfg.nmsIouThreshold = section.value("nms_iou_threshold", cfg.nmsIouThreshold);
+    cfg.intraOpThreads = section.value("intra_op_threads", cfg.intraOpThreads);
+    cfg.gantrySpeedMps = section.value("gantry_speed_mps", cfg.gantrySpeedMps);
+    cfg.lookAheadDistanceM = section.value("look_ahead_distance_m", cfg.lookAheadDistanceM);
+    cfg.panelHeightM = section.value("panel_height_m", cfg.panelHeightM);
+    cfg.totalNozzles = section.value("total_nozzles", cfg.totalNozzles);
 
     // Default classes
     cfg.classMap[0] = {"dust", "dry_clean"};

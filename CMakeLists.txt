@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
 project(SolarSweeperEdgeDaemon LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
@@ -72,6 +73,30 @@ set(PAHO_BUILD_DOCUMENTATION OFF CACHE BOOL "" FORCE)
 set(PAHO_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(paho_c)
 
+# --- ONNX Runtime Engine ---
+set(ONNXRUNTIME_VERSION "1.18.0")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  set(ORT_ARCH "aarch64")
+else()
+  set(ORT_ARCH "x64")
+endif()
+
+FetchContent_Declare(onnxruntime_bin
+  URL "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}.tgz"
+  DOWNLOAD_EXTRACT_TIMESTAMP true
+)
+FetchContent_MakeAvailable(onnxruntime_bin)
+
+set(ORT_ROOT "${onnxruntime_bin_SOURCE_DIR}")
+if(NOT EXISTS "${ORT_ROOT}/include" AND EXISTS "${ORT_ROOT}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}")
+  set(ORT_ROOT "${ORT_ROOT}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}")
+endif()
+
+add_library(onnxruntime INTERFACE)
+target_include_directories(onnxruntime INTERFACE ${ORT_ROOT}/include)
+target_link_libraries(onnxruntime INTERFACE ${ORT_ROOT}/lib/libonnxruntime.so)
+target_link_options(onnxruntime INTERFACE "-Wl,-rpath,${ORT_ROOT}/lib")
+
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_library(daemon_core STATIC
@@ -83,9 +108,11 @@ add_library(daemon_core STATIC
   src/Mocks/MockNetworkClient.cpp
   src/Mocks/MockHardwareDriver.cpp
   src/Mocks/MockVisionEngine.cpp
-  src/Hardware/SerialHardwareDriver.cpp
   src/Network/MqttNetworkClient.cpp
   src/Network/TelemetrySpooler.cpp
+  src/Vision/V4L2CameraPipeline.cpp
+  src/Vision/SpatialCoordinateMapper.cpp
+  src/Vision/OnnxVisionEngine.cpp
   src/App/Application.cpp
   src/Util/Logger.cpp
 )
@@ -96,6 +123,7 @@ target_link_libraries(daemon_core PUBLIC
   nlohmann_json::nlohmann_json
   asio_headers
   paho-mqtt3a-static
+  onnxruntime
   Threads::Threads
 )
 
