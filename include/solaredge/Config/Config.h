@@ -79,8 +79,18 @@ struct VisionClassDef {
 
 struct VisionConfig {
     std::string modelPath = "models/debris_detector.onnx";
+    std::string cameraDevice = "/dev/video0";
     int cameraIndex = 0;
-    float confidenceThreshold = 0.65f;
+    int imageWidth = 1920;
+    int imageHeight = 1080;
+    int framerate = 30;
+    float confidenceThreshold = 0.50f;
+    float nmsIouThreshold = 0.45f;
+    int intraOpThreads = 2;
+    float gantrySpeedMps = 0.15f;
+    float lookAheadDistanceM = 0.20f;
+    float panelHeightM = 1.60f;
+    int totalNozzles = 4;
     std::unordered_map<int, VisionClassDef> classMap;
 };
 
