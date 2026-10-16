@@ -42,8 +42,8 @@ For in-depth explanations, architecture diagrams, decision records, and integrat
   * Core C++17 daemon, lock-free MPSC queue, TinyFSM engine, mock modules, interactive CLI, and Catch2 test harness.
 * **Phase 2: Hardware Abstraction Layer & Malleability** -- 🟢 **Done**
   * POSIX UART/Serial driver, background reader thread, configurable opcode lookup, systemd unit, and offline disk cache.
-* **Phase 3: Network & Telemetry Layer (MQTT Integration)** -- ⏳ **In Progress**
-  * Integrating Eclipse Paho MQTT client for live cloud telemetry synchronization and offline cache draining.
+* **Phase 3: Network & Telemetry Layer (MQTT Integration)** -- 🟢 **Done**
+  * Integrated Eclipse Paho MQTT client for live cloud telemetry synchronization, remote command dispatch, and offline disk cache spooling/draining.
 * **Phase 4: AI Vision Integration** -- ⏳ **Upcoming**
   * Hooking up the camera pipeline and ONNX Runtime for debris classification and automated cleaning decisions.
 
