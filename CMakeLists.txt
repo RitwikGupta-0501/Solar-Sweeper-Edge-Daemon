@@ -111,6 +111,7 @@ add_library(daemon_core STATIC
   src/Network/MqttNetworkClient.cpp
   src/Network/TelemetrySpooler.cpp
   src/Vision/V4L2CameraPipeline.cpp
+  src/Vision/SpatialCoordinateMapper.cpp
   src/App/Application.cpp
   src/Util/Logger.cpp
 )
